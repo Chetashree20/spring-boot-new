@@ -2,21 +2,20 @@ pipeline {
     agent any
 
     environment {
-        DOCKER_IMAGE = "chetu20/spring-boot"
-        DOCKER_TAG = "1.${BUILD_NUMBER}"
-        KUBE_DEPLOYMENT = "spring-deploy"
-        CONTAINER_NAME = "spring-container"
+        DOCKER_IMAGE = "your-dockerhub-username/springboot-app"
+        DOCKER_TAG = "${BUILD_NUMBER}"
     }
 
     stages {
 
-        stage('Clone Code') {
+        stage('Checkout Code') {
             steps {
-                git 'https://github.com/Chetashree20/spring-boot-new.git'
+                git branch: 'main',
+                url: 'https://github.com/your-username/your-repo.git'
             }
         }
 
-        stage('Build JAR') {
+        stage('Build Maven') {
             steps {
                 sh 'mvn clean package -DskipTests'
             }
@@ -28,28 +27,39 @@ pipeline {
             }
         }
 
-        stage('Push Docker Image') {
+        stage('Docker Login') {
             steps {
-                withCredentials([usernamePassword(
-                    credentialsId: 'dockerhub-creds',
-                    usernameVariable: 'DOCKER_USER',
-                    passwordVariable: 'DOCKER_PASS'
-                )]) {
-                    sh '''
-                        echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin
-                        docker push $DOCKER_IMAGE:$DOCKER_TAG
-                    '''
+                withCredentials([usernamePassword(credentialsId: 'docker-creds',
+                usernameVariable: 'DOCKER_USER',
+                passwordVariable: 'DOCKER_PASS')]) {
+
+                    sh 'echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin'
                 }
+            }
+        }
+
+        stage('Push Image to DockerHub') {
+            steps {
+                sh 'docker push $DOCKER_IMAGE:$DOCKER_TAG'
             }
         }
 
         stage('Deploy to Kubernetes') {
             steps {
                 sh '''
-                    kubectl set image deployment/$KUBE_DEPLOYMENT \
-                    $CONTAINER_NAME=$DOCKER_IMAGE:$DOCKER_TAG
+                kubectl set image deployment/springboot-app \
+                springboot-app=$DOCKER_IMAGE:$DOCKER_TAG
                 '''
             }
+        }
+    }
+
+    post {
+        success {
+            echo "Deployment Successful 🚀"
+        }
+        failure {
+            echo "Pipeline Failed ❌"
         }
     }
 }
