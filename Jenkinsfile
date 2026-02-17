@@ -2,7 +2,7 @@ pipeline {
     agent any
 
     environment {
-        DOCKER_IMAGE = "your-dockerhub-username/springboot-app"
+        DOCKER_IMAGE = "chetu20/spring-boot"
         DOCKER_TAG = "${BUILD_NUMBER}"
     }
 
@@ -11,7 +11,7 @@ pipeline {
         stage('Checkout Code') {
             steps {
                 git branch: 'main',
-                url: 'https://github.com/your-username/your-repo.git'
+                url: 'https://github.com/Chetashree20/spring-boot-new.git'
             }
         }
 
