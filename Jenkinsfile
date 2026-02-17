@@ -8,8 +8,9 @@ pipeline {
     environment {
         DOCKER_IMAGE = "chetu20/spring-boot"
         DOCKER_TAG   = "${BUILD_NUMBER}"
-        K8S_DEPLOYMENT = "spring-deploy"   // 🔥 Change if needed
-        K8S_NAMESPACE  = "default"
+        DEPLOYMENT   = "spring-deploy"
+        CONTAINER    = "spring-container"
+        NAMESPACE    = "default"
     }
 
     stages {
@@ -40,9 +41,7 @@ pipeline {
                     usernameVariable: 'DOCKER_USER',
                     passwordVariable: 'DOCKER_PASS'
                 )]) {
-                    sh '''
-                        echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin
-                    '''
+                    sh 'echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin'
                 }
             }
         }
@@ -53,22 +52,16 @@ pipeline {
             }
         }
 
-        // 🔎 TROUBLESHOOT STAGE
-        stage('Verify Kubernetes Deployment') {
-            steps {
-                sh '''
-                    echo "Current Deployments:"
-                    kubectl get deployment -n ${K8S_NAMESPACE}
-                '''
-            }
-        }
-
         stage('Deploy to Kubernetes') {
             steps {
                 sh """
-                    kubectl set image deployment/${K8S_DEPLOYMENT} \
-                    ${K8S_DEPLOYMENT}=${DOCKER_IMAGE}:${DOCKER_TAG} \
-                    -n ${K8S_NAMESPACE}
+                    echo "Updating deployment image..."
+                    kubectl set image deployment/${DEPLOYMENT} \
+                    ${CONTAINER}=${DOCKER_IMAGE}:${DOCKER_TAG} \
+                    -n ${NAMESPACE}
+
+                    echo "Waiting for rollout..."
+                    kubectl rollout status deployment/${DEPLOYMENT} -n ${NAMESPACE}
                 """
             }
         }
