@@ -1,15 +1,15 @@
 kind: Service
 apiVersion: v1
 metadata:
-  name: velservice
-
+  name: spring-service
 
 spec:
+  type: NodePort
+
+  selector:
+    app: spring-app
+
   ports:
     - port: 8080
       targetPort: 8080
-
-  selector:
-    name: velpod
-
-  type: NodePort
+      nodePort: 30007
