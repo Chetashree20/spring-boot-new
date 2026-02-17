@@ -1,11 +1,13 @@
 pipeline {
     agent any
- tools {
-        maven 'maven'   // Use the exact name from Global Tool Configuration
+
+    tools {
+        maven 'maven'   // Make sure Maven tool name in Jenkins is exactly "Maven"
     }
+
     environment {
         DOCKER_IMAGE = "chetu20/spring-boot"
-        DOCKER_TAG = "${BUILD_NUMBER}"
+        DOCKER_TAG   = "${BUILD_NUMBER}"
     }
 
     stages {
@@ -13,11 +15,11 @@ pipeline {
         stage('Checkout Code') {
             steps {
                 git branch: 'master',
-                url: 'https://github.com/Chetashree20/spring-boot-new.git'
+                    url: 'https://github.com/Chetashree20/spring-boot-new.git'
             }
         }
 
-        stage('Build Maven') {
+        stage('Build Application') {
             steps {
                 sh 'mvn clean package -DskipTests'
             }
@@ -25,43 +27,46 @@ pipeline {
 
         stage('Build Docker Image') {
             steps {
-                sh 'docker build -t $DOCKER_IMAGE:$DOCKER_TAG .'
+                sh "docker build -t ${DOCKER_IMAGE}:${DOCKER_TAG} ."
             }
         }
 
         stage('Docker Login') {
             steps {
-                withCredentials([usernamePassword(credentialsId: 'docker-creds',
-                usernameVariable: 'DOCKER_USER',
-                passwordVariable: 'DOCKER_PASS')]) {
-
-                    sh 'echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin'
+                withCredentials([usernamePassword(
+                    credentialsId: 'docker-creds',
+                    usernameVariable: 'DOCKER_USER',
+                    passwordVariable: 'DOCKER_PASS'
+                )]) {
+                    sh '''
+                        echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin
+                    '''
                 }
             }
         }
 
-        stage('Push Image to DockerHub') {
+        stage('Push Image') {
             steps {
-                sh 'docker push $DOCKER_IMAGE:$DOCKER_TAG'
+                sh "docker push ${DOCKER_IMAGE}:${DOCKER_TAG}"
             }
         }
 
         stage('Deploy to Kubernetes') {
             steps {
-                sh '''
-                kubectl set image deployment/springboot-app \
-                springboot-app=$DOCKER_IMAGE:$DOCKER_TAG
-                '''
+                sh """
+                    kubectl set image deployment/springboot-app \
+                    springboot-app=${DOCKER_IMAGE}:${DOCKER_TAG}
+                """
             }
         }
     }
 
     post {
         success {
-            echo "Deployment Successful 🚀"
+            echo 'Deployment Successful 🚀'
         }
         failure {
-            echo "Pipeline Failed ❌"
+            echo 'Pipeline Failed ❌'
         }
     }
 }
