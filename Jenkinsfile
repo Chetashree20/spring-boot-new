@@ -1,76 +1,55 @@
 pipeline {
     agent any
 
+    environment {
+        DOCKER_IMAGE = "chetu20/spring-boot"
+        DOCKER_TAG = "1.${BUILD_NUMBER}"
+        KUBE_DEPLOYMENT = "spring-deploy"
+        CONTAINER_NAME = "spring-container"
+    }
+
     stages {
+
+        stage('Clone Code') {
+            steps {
+                git 'https://github.com/Chetashree20/spring-boot-new.git'
+            }
+        }
+
         stage('Build JAR') {
             steps {
-                script {
-                    try {
-                        sh 'mvn clean package -DskipTests'
-                        sh 'mkdir -p /mnt/jars'
-                        sh 'cp target/*.jar /mnt/jars/app.jar'
-                        echo '✅ JAR build SUCCESS'
-                    } catch (err) {
-                        echo '❌ JAR build FAILED'
-                        error("Stopping pipeline due to build failure")
-                    }
-                }
+                sh 'mvn clean package -DskipTests'
             }
         }
 
         stage('Build Docker Image') {
             steps {
-                script {
-                    try {
-                        sh 'docker build -t chetu20/springboot:1.0 .'
-                        echo '✅ Docker image build SUCCESS'
-                    } catch (err) {
-                        echo '❌ Docker image build FAILED'
-                        error("Stopping pipeline due to docker build failure")
-                    }
-                }
+                sh 'docker build -t $DOCKER_IMAGE:$DOCKER_TAG .'
             }
         }
 
         stage('Push Docker Image') {
             steps {
-                script {
-                    try {
-                        sh 'echo "my-dockerhub-password" | docker login -u "chetu20" -p "Chetu@1994"'
-                        sh 'docker push chetu20/springboot:1.0'
-                        echo '✅ Docker push SUCCESS'
-                    } catch (err) {
-                        echo '❌ Docker push FAILED'
-                        error("Stopping pipeline due to push failure")
-                    }
+                withCredentials([usernamePassword(
+                    credentialsId: 'dockerhub-creds',
+                    usernameVariable: 'DOCKER_USER',
+                    passwordVariable: 'DOCKER_PASS'
+                )]) {
+                    sh '''
+                        echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin
+                        docker push $DOCKER_IMAGE:$DOCKER_TAG
+                    '''
                 }
             }
         }
 
         stage('Deploy to Kubernetes') {
             steps {
-                script {
-                    try {
-                        sh 'kubectl apply -f deploy.yaml'
-                        sh 'kubectl apply -f service.yaml'
-                        sleep 15 && sudo kubectl get pods
-                        sleep 15 && sudo kubectl get service
-                        echo '✅ Kubernetes deploy SUCCESS'
-                    } catch (err) {
-                        echo '❌ Kubernetes deploy FAILED'
-                        error("Stopping pipeline due to deploy failure")
-                    }
-                }
+                sh '''
+                    kubectl set image deployment/$KUBE_DEPLOYMENT \
+                    $CONTAINER_NAME=$DOCKER_IMAGE:$DOCKER_TAG
+                '''
             }
-        }
-    }
-
-    post {
-        success {
-            echo '🎉 Pipeline completed successfully!'
-        }
-        failure {
-            echo '💥 Pipeline failed!'
         }
     }
 }
