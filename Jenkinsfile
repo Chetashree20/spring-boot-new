@@ -2,12 +2,14 @@ pipeline {
     agent any
 
     tools {
-        maven 'maven'   // Make sure Maven tool name in Jenkins is exactly "Maven"
+        maven 'Maven'
     }
 
     environment {
         DOCKER_IMAGE = "chetu20/spring-boot"
         DOCKER_TAG   = "${BUILD_NUMBER}"
+        K8S_DEPLOYMENT = "spring-deploy"   // 🔥 Change if needed
+        K8S_NAMESPACE  = "default"
     }
 
     stages {
@@ -51,11 +53,22 @@ pipeline {
             }
         }
 
+        // 🔎 TROUBLESHOOT STAGE
+        stage('Verify Kubernetes Deployment') {
+            steps {
+                sh '''
+                    echo "Current Deployments:"
+                    kubectl get deployment -n ${K8S_NAMESPACE}
+                '''
+            }
+        }
+
         stage('Deploy to Kubernetes') {
             steps {
                 sh """
-                    kubectl set image deployment/springboot-app \
-                    springboot-app=${DOCKER_IMAGE}:${DOCKER_TAG}
+                    kubectl set image deployment/${K8S_DEPLOYMENT} \
+                    ${K8S_DEPLOYMENT}=${DOCKER_IMAGE}:${DOCKER_TAG} \
+                    -n ${K8S_NAMESPACE}
                 """
             }
         }
