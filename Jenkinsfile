@@ -1,6 +1,8 @@
 pipeline {
     agent any
-
+ tools {
+        maven 'maven'   // Use the exact name from Global Tool Configuration
+    }
     environment {
         DOCKER_IMAGE = "chetu20/spring-boot"
         DOCKER_TAG = "${BUILD_NUMBER}"
@@ -10,7 +12,7 @@ pipeline {
 
         stage('Checkout Code') {
             steps {
-                git branch: 'main',
+                git branch: 'master',
                 url: 'https://github.com/Chetashree20/spring-boot-new.git'
             }
         }
